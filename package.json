@@ -1,0 +1,18 @@
+{
+  "name": "alfred",
+  "version": "1.0.0",
+  "description": "Pillar home DI NLI",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "JP",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "*",
+    "request": "^2.79.0",
+    "request-promise": "*",
+    "restify": "*",
+    "node-wit": "*"
+  }
+}
