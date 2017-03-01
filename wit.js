@@ -6,7 +6,8 @@
 const rp           = require('request-promise'),
       dotenv       = require('dotenv'),
       Wit          = require('node-wit').Wit,
-      alfredHelper = require('./helper.js');
+      alfredHelper = require('./helper.js'),
+      dateFormat   = require('dateformat');
 
 // Load env vars
 dotenv.load()
@@ -94,8 +95,16 @@ exports.getRequest = function (req, res, next) {
                 });
                 break;
             case 'time':
+                // Get entities
+                var location = firstEntityValue(AIData.entities, 'location');
+                if (typeof location !== 'undefined' && location !== null) {
+                    location = '&location=' + location;
+                } else {
+                    location = '';
+                };
+
                 // Construct url
-                url = url + '/whatisthetime?app_key=' + process.env.app_key;
+                url = url + '/whatisthetime?app_key=' + process.env.app_key + location;
 
                 // Call the url and process data
                 alfredHelper.requestAPIdata(url)
@@ -112,22 +121,62 @@ exports.getRequest = function (req, res, next) {
                     console.log('wit: ' + err);
                 });
                 break;
-            case 'weather':
-                // *** TO DO ***
+            case 'snow':
+                // Get entities
+                var location = firstEntityValue(AIData.entities, 'location');
+                if (typeof location !== 'undefined' && location !== null) {
+                    location = '&location=' + location;
+                } else {
+                    location = '';
+                };
 
+                // Construct url
+                url = url + '/weather/willitsnow?app_key=' + process.env.app_key + location;
+
+                // Call the url and process data
+                alfredHelper.requestAPIdata(url)
+                .then(function(apiData){
+                    // Get the weather data
+                    apiData = apiData.body;
+
+                    // Send response back to caller
+                    alfredHelper.sendResponse(res, apiData.code, apiData.data);
+                })
+                .catch(function (err) {
+                    // Send response back to caller
+                    alfredHelper.sendResponse(res, 'error', err.message);
+                    console.log('wit: ' + err);
+                });
+                break;
+            case 'weather':
                 // Get entities
                 var location      = firstEntityValue(AIData.entities, 'location'),
-                    requesteddate = firstEntityValue(AIData.entities, 'datetime'),
-                    weatherFor    = 'today'
+                    willitsnow    = firstEntityValue(AIData.entities, 'snow'),
+                    requesteddate = dateFormat(firstEntityValue(AIData.entities, 'datetime'), "yyyy-mm-dd"),
+                    datetoday     = dateFormat(Date.now(), "yyyy-mm-dd"),
+                    weatherFor    = 'today';
 
-                console.log (location);
-                console.log (requesteddate);
-                
+                if (requesteddate != datetoday) {
+                    weatherFor = 'tomorrow';
+                };
+
                 // Construct url
                 url = url + '/weather/' + weatherFor + '?app_key=' + process.env.app_key + '&';
-                console.log(url)
 
+                // Call the url and process data
+                alfredHelper.requestAPIdata(url)
+                .then(function(apiData){
+                    // Get the weather data
+                    apiData = apiData.body;
 
+                    // Send response back to caller
+                    alfredHelper.sendResponse(res, apiData.code, apiData.data);
+                })
+                .catch(function (err) {
+                    // Send response back to caller
+                    alfredHelper.sendResponse(res, 'error', err.message);
+                    console.log('wit: ' + err);
+                });
                 break;
             case 'joke':
                 // Construct url

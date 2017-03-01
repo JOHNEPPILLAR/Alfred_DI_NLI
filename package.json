@@ -13,6 +13,7 @@
     "request": "^2.79.0",
     "request-promise": "*",
     "restify": "*",
-    "node-wit": "*"
+    "node-wit": "*",
+    "dateformat": "*"
   }
 }
