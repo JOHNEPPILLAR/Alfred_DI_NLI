@@ -4,16 +4,10 @@
 // Setup WIT
 //=========================================================
 const rp           = require('request-promise'),
-      dotenv       = require('dotenv'),
-      Wit          = require('node-wit').Wit,
-      alfredHelper = require('./helper.js'),
       dateFormat   = require('dateformat');
 
 // Load env vars
 dotenv.load()
-
-// Setup WIT
-const WitClient = new Wit({accessToken: process.env.WIT_TOKEN});
 
 //=========================================================
 // Helper functions
@@ -49,7 +43,7 @@ function dataOK (Obj) {
 //=========================================================
 // Process the request
 //=========================================================
-exports.getRequest = function (req, res, next) {
+exports.getRequest = function(req, res, next) {
 
     var userRequest = strip(req.query.user_request),
         url         = process.env.ALFRED_DI_URL;
@@ -66,61 +60,166 @@ exports.getRequest = function (req, res, next) {
             } else {
                 var AIintent = AIData.entities.intent[0].value;
             };
-            console.log('Intent: ' + AIintent)
+            logger.info('Intent: ' + AIintent)
 
             switch (AIintent.toLowerCase()) {
+
+            case 'hello':
+                var errorMessage = 'There has been an error. I am unable to say hello.';
+                url = url + '/hello?app_key=' + process.env.app_key;
+                alfredHelper.requestAPIdata(url)
+                .then(function(apiObj) {
+                    var apiData = apiObj.body.data;
+                    if (apiObj.body.code == 'sucess') {
+                        // Send response back to alexa
+                        alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(apiData));
+                    } else {
+                        alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    };
+                })
+                .catch(function(err) {
+                    alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    logger.error('hello: ' + err);
+                });
+                break;
+
+            case 'help':
+                var errorMessage = 'There has been an error. I am unable to help you.';
+                url = url + '/help?app_key=' + process.env.app_key;
+                alfredHelper.requestAPIdata(url)
+                .then(function(apiObj) {
+                    var apiData = apiObj.body.data;
+                    if (apiObj.body.code == 'sucess') {
+                        // Send response back to alexa
+                        alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(apiData));
+                    } else {
+                        alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    };
+                })
+                .catch(function(err) {
+                    alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    logger.error('help: ' + err);
+                });
+                break;
+
+            case 'joke':
+                var errorMessage = 'There has been an error. I am unable to tell you a joke.';
+                url = url + '/joke?app_key=' + process.env.app_key;
+                alfredHelper.requestAPIdata(url)
+                .then(function(apiObj) {
+                    var apiData = apiObj.body.data;
+                    if (apiObj.body.code == 'sucess') {
+                        // Send response back to alexa
+                        alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(apiData));
+                    } else {
+                        alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    };
+                })
+                .catch(function(err) {
+                    alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    logger.error('joke: ' + err);
+                });
+                break;
+
             case 'news':
                 // Get entities
-                var news_type = firstEntityValue(AIData.entities, 'search_query');
+                var errorMessage = 'There has been an error. I am unable to tell you the news.',
+                    news_type    = firstEntityValue(AIData.entities, 'search_query');
 
                 if (typeof news_type !== 'undefined' && news_type !== null) {
+                    switch (news_type) {
+                    case 'news':
+                        break;
+                    case 'sports':
+                        break;
+                    case 'science':
+                        break;
+                    case 'tech':
+                        break;
+                    case 'business':
+                        break;
+                    default:
+                        news_type = 'news';
+                        break;
+                    };
                     url = url + '/news?app_key=' + process.env.app_key + '&news_type=' + news_type;
-                } else {
-                    url = url + '/news?app_key=' + process.env.app_key + '&news_type=news';
                 };
 
                 // Call the url and process data
                 alfredHelper.requestAPIdata(url)
-                .then(function(apiData) {
-                    // Get the joke data
-                    apiData = apiData.body;
+                .then(function(apiObj) {
+                    var apiData         = apiObj.body.data,
+                        outputHeadlines = 'Here are the headlines: ';
 
-                    // Send response back to caller
-                    alfredHelper.sendResponse(res, apiData.code, apiData.data);
+                    if (apiObj.body.code == 'sucess') {
+                        switch (news_type) {
+                        case 'news':
+                            apiData.forEach(function(value) {
+                                outputHeadlines = outputHeadlines + value.title + '. ';
+                            });
+                            break;
+                        case 'sports':
+                            apiData.forEach(function(value) {
+                                outputHeadlines = outputHeadlines + value.title + '. ';
+                            });
+                            break;
+                        case 'science':
+                            apiData.forEach(function(value) {
+                                outputHeadlines = outputHeadlines + value.title + '. ';
+                            });
+                            break;
+                        case 'tech':
+                            apiData.forEach(function(value) {
+                                outputHeadlines = outputHeadlines + value.title + '. ';
+                            });
+                            break;
+                        case 'business':
+                            apiData.forEach(function(value) {
+                                outputHeadlines = outputHeadlines + value.title + '. ';
+                            });
+                            break;
+                        };
+                        // Send response back to alexa
+                        alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(outputHeadlines));
+                    } else {
+                        alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    };
                 })
-                .catch(function (err) {
-                    // Send response back to caller
-                    alfredHelper.sendResponse(res, 'error', err.message);
-                    console.log('wit: ' + err);
+                .catch(function(err) {
+                    alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    logger.error('news: ' + err);
                 });
                 break;
+
             case 'time':
                 // Get entities
-                var location = firstEntityValue(AIData.entities, 'location');
+                var errorMessage = 'There has been an error. I am unable to tell you a joke.',
+                    location     = firstEntityValue(AIData.entities, 'location');
+
                 if (typeof location !== 'undefined' && location !== null) {
                     location = '&location=' + location;
                 } else {
                     location = '';
                 };
 
-                // Construct url
                 url = url + '/whatisthetime?app_key=' + process.env.app_key + location;
-
-                // Call the url and process data
                 alfredHelper.requestAPIdata(url)
-                .then(function(apiData){
-                    // Get the joke data
-                    apiData = apiData.body;
-
-                    // Send response back to caller
-                    alfredHelper.sendResponse(res, apiData.code, apiData.data);
+                .then(function(apiObj) {
+                    var apiData = apiObj.body.data;
+                    if (apiObj.body.code == 'sucess') {
+                        // Send response back to alexa
+                        alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(apiData));
+                    } else {
+                        alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    };
                 })
-                .catch(function (err) {
-                    // Send response back to caller
-                    alfredHelper.sendResponse(res, 'error', err.message);
-                    console.log('wit: ' + err);
+                .catch(function(err) {
+                    alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    logger.error('joke: ' + err);
                 });
                 break;
+
+/*
             case 'snow':
                 // Get entities
                 var location = firstEntityValue(AIData.entities, 'location');
@@ -178,7 +277,7 @@ exports.getRequest = function (req, res, next) {
                     console.log('wit: ' + err);
                 });
                 break;
-            case 'joke':
+
                 // Construct url
                 url = url + '/joke?app_key=' + process.env.app_key;
 
@@ -197,11 +296,18 @@ exports.getRequest = function (req, res, next) {
                     console.log('wit: ' + err);
                 });
                 break;
-            default:
-                console.log ('No intent returned so going to pass to search skill');
 
-                // Get entities
-                var userQuery = AIData._text;
+           
+           
+           
+           
+           
+
+*/
+            default:
+                //logger.info ('No intent returned so going to pass to search skill');
+                var errorMessage = 'There has been an error searching for your request.',
+                    userQuery    = AIData._text;
                 
                 // Construct url
                 url = url + '/search?app_key=' + process.env.app_key + '&search_term=' + userQuery;
@@ -209,29 +315,27 @@ exports.getRequest = function (req, res, next) {
                 // Call the url and process data
                 alfredHelper.requestAPIdata(url)
                 .then(function(apiData) {
-                    // Get the joke data
-                    apiData = apiData.body;
-
-                    // Send response back to caller
-                    alfredHelper.sendResponse(res, apiData.code, apiData.data);
+                    if (apiObj.body.code == 'sucess') {
+                        apiData = apiData.body;
+                        alfredHelper.sendResponse(res, apiData.code, alfredHelper.processResponseText(apiData.data));
+                    } else {
+                        alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    };
                 })
                 .catch(function (err) {
-                    // Send response back to caller
-                    alfredHelper.sendResponse(res, 'error', err.message);
-                    console.log('wit: ' + err);
+                    alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    logger.error('search: ' + err);
                 });
                 break;
             };
             next();
         })
         .catch(function (err) {
-            // Send response back to caller
-            alfredHelper.sendResponse(res, 'error', err.message);
-            console.log('getRequest: ' + err);
+            alfredHelper.sendResponse(res, 'error', 'There was an error calling the natural langiage processing logic');
+            logger.error('getRequest: ' + err);
         })
     } else {
-        // Send response back to caller
-        alfredHelper.sendResponse(res, 'error', 'The user_request parameter was not supplied.');
-        console.log('getRequest: The user_request parameter was not supplied.');
+        alfredHelper.sendResponse(res, 'error', 'The user request parameter was not supplied to the middleware api.');
+        logger.error('getRequest: The user_request parameter was not supplied.');
     };
 };

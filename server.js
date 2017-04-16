@@ -1,12 +1,20 @@
 //=========================================================
 // Setup server
 //=========================================================
-const restify = require('restify'),
-      dotenv  = require('dotenv'),
-      WIT     = require('./wit.js');
+const restify    = require('restify');
+
+// Get up global vars
+global.logger       = require('winston');
+global.dotenv       = require('dotenv');
+global.Wit          = require('node-wit').Wit,
+global.alfredHelper = require('./helper.js');
+global.WIT          = require('./wit.js');
+global.WitClient    = new Wit({accessToken: process.env.WIT_TOKEN});
 
 // Load env vars
 dotenv.load()
+
+alfredHelper.setLogger(logger); // Configure the logger
 
 // Restify server Init
 const server = restify.createServer({
@@ -43,5 +51,5 @@ server.get('/', WIT.getRequest);
 // Start server and listen to messqges
 //=========================================================
 server.listen(process.env.PORT, function() {
-   console.log('%s listening to %s', server.name, server.url);
+   logger.info('%s listening to %s', server.name, server.url);
 });

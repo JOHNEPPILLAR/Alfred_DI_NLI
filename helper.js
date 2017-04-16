@@ -1,5 +1,21 @@
 'use strict';
-const rp = require('request-promise');
+const rp         = require('request-promise'),      
+      dateFormat = require('dateformat'),
+      Speech     = require('ssml-builder');
+
+//=========================================================
+// Setup logging
+//=========================================================
+exports.setLogger = function (logger) {
+    if (process.env.environment == 'live'){
+        // Send logging to a file
+        logger.add(logger.transports.File, { filename: 'Alfred.log', timestamp: true, colorize: true });
+        logger.remove(logger.transports.Console);
+    } else {
+        logger.remove(logger.transports.Console);
+        logger.add(logger.transports.Console, {timestamp: function() { return dateFormat(new Date(), "dd mmm yyyy HH:MM") }, colorize: true});
+    };
+};
 
 //=========================================================
 // Construct and send JSON response back to caller
@@ -23,6 +39,7 @@ exports.requestAPIdata = function (apiURL, userAgent) {
         'User-Agent': userAgent,
         method: 'GET',
         uri: apiURL,
+        family: 4,
         resolveWithFullResponse: true,
         json: true
     }
@@ -32,6 +49,24 @@ exports.requestAPIdata = function (apiURL, userAgent) {
 //=========================================================
 // Misc
 //=========================================================
+exports.processResponseText = function (OutputText) {
+    if (OutputText!== null) {
+        var speechObj = OutputText.match(/[^\.!\?]+[\.!\?]+/g),
+            speech = new Speech();  
+
+        // TODO fix ' with \' but only if it needs to be as some text already has the escape char
+
+        speechObj.forEach(function(value) { // Construct ssml response
+            speech.say(value);
+            speech.pause('500ms');
+        });
+        return speech.ssml(true);
+    } else {
+        return 'There was an error processing the response text.';
+    };
+};
+
+
 exports.isEmptyObject = function (obj) {
     for (var key in obj) {
         if (Object.prototype.hasOwnProperty.call(obj, key)) {
@@ -52,6 +87,7 @@ exports.GetSortOrder = function (prop) {
     }
 }; 
 
+/*
 exports.addDays = function (date, amount) {
     var tzOff = date.getTimezoneOffset() * 60 * 1000,
         t = date.getTime(),
@@ -69,15 +105,4 @@ exports.addDays = function (date, amount) {
     };
     return d;
 };
-
-exports.minutesToStop = function (timeofnextbus) {
-    var timetostopinMinutes = Math.floor(timeofnextbus / 60);
-    switch (timetostopinMinutes) {
-        case 0:
-            return 'in less than a minute';
-        case 1:
-            return 'in ' + timetostopinMinutes + ' minute';
-        default:
-            return 'in ' + timetostopinMinutes + ' minutes';
-    };
-};
+*/
