@@ -1,13 +1,22 @@
 'use strict';
 
 //=========================================================
+// ToDo List
+//=========================================================
+/*
+Weather: will it snow in the next x days
+weather: forcast for tomorrow and location
+
+
+*/
+
+//=========================================================
 // Setup WIT
 //=========================================================
 const rp           = require('request-promise'),
       dateFormat   = require('dateformat');
 
-// Load env vars
-dotenv.load()
+dotenv.load() // Load env vars
 
 //=========================================================
 // Helper functions
@@ -46,87 +55,132 @@ function dataOK (Obj) {
 exports.getRequest = function(req, res, next) {
 
     var userRequest = strip(req.query.user_request),
-        url         = process.env.ALFRED_DI_URL;
+        url         = process.env.ALFRED_DI_URL,
+        IntentFound = true,
+        AIintent    = 'default';
 
-    if (typeof userRequest !== 'undefined' && userRequest !== null) {
+    if (typeof userRequest !== 'undefined' && userRequest !== null) { // Make sure param is not empty
 
         // Send user's request on to WIT.AI to see if we can get an intent from it
         WitClient.message(userRequest, {})
         .then(function(AIData){
 
-            // If no intent returned from WAT.AI the default to search
+            // If no intent returned from WAT.AI, default to search
             if (alfredHelper.isEmptyObject(AIData.entities.intent)) {
-                var AIintent = 'search';
+                IntentFound = false;
             } else {
-                var AIintent = AIData.entities.intent[0].value;
+                AIintent = AIData.entities.intent[0].value;
             };
             logger.info('Intent: ' + AIintent)
 
+            // Process the intent
             switch (AIintent.toLowerCase()) {
+            // Search api mappings. Also used for no intent found mapping
+            default:
+                var errorMessage = 'There has been an error searching for your request.',
+                    userQuery    = AIData._text,
+                    messageText  = '';
+                
+                // Construct url
+                url = url + '/search?app_key=' + process.env.app_key + '&search_term=' + userQuery;
 
-            case 'hello':
-                var errorMessage = 'There has been an error. I am unable to say hello.';
-                url = url + '/hello?app_key=' + process.env.app_key;
+                // Call the url and process data
                 alfredHelper.requestAPIdata(url)
-                .then(function(apiObj) {
-                    var apiData = apiObj.body.data;
-                    if (apiObj.body.code == 'sucess') {
-                        // Send response back to alexa
-                        alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(apiData));
-                    } else {
+                .then(function(apiObj) { // Call the api
+                    if (apiObj.body.code == 'sucess') {  // if sucess process the data
+                        var apiData = apiObj.body;
+
+                        if (!IntentFound){ // If no intent passed from WIT then prefix response
+                            messageText = 'Hmmm, let me check with Google.' + apiData.data;
+                        } else {
+                            messageText = apiData.data;
+                        };
+                        alfredHelper.sendResponse(res, apiData.code, alfredHelper.processResponseText(messageText));
+                    } else { // if error return a nice message
                         alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
                     };
                 })
-                .catch(function(err) {
+                .catch(function (err) { // if error return a nice message
                     alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
-                    logger.error('hello: ' + err);
+                    logger.error('search: ' + err);
                 });
                 break;
 
-            case 'help':
-                var errorMessage = 'There has been an error. I am unable to help you.';
-                url = url + '/help?app_key=' + process.env.app_key;
-                alfredHelper.requestAPIdata(url)
+            // Generic api mappings
+            case 'hello':
+                var errorMessage = 'There has been an error. I am unable to say hello.';
+
+                // Construct url
+                url = url + '/hello?app_key=' + process.env.app_key;
+
+                // Call the url and process data
+                alfredHelper.requestAPIdata(url) // Call the api
                 .then(function(apiObj) {
                     var apiData = apiObj.body.data;
-                    if (apiObj.body.code == 'sucess') {
+                    if (apiObj.body.code == 'sucess') { // if sucess process the data
                         // Send response back to alexa
                         alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(apiData));
-                    } else {
+                    } else { // if error return a nice message
                         alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
                     };
                 })
-                .catch(function(err) {
+                .catch(function(err) { // if error return a nice message
+                    alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    logger.error('hello: ' + err);
+                });
+                break;         
+            case 'help':
+                var errorMessage = 'There has been an error. I am unable to help you.';
+                url = url + '/help?app_key=' + process.env.app_key;
+
+                // Call the url and process data
+                alfredHelper.requestAPIdata(url)
+                .then(function(apiObj) { // Call the api
+                    var apiData = apiObj.body.data;
+                    if (apiObj.body.code == 'sucess') { // if sucess process the data
+                        // Send response back to alexa
+                        alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(apiData));
+                    } else { // if error return a nice message
+                        alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    };
+                })
+                .catch(function(err) { // if error return a nice message
                     alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
                     logger.error('help: ' + err);
                 });
                 break;
 
+            // Joke api mappings
             case 'joke':
                 var errorMessage = 'There has been an error. I am unable to tell you a joke.';
+
+                // Construct url
                 url = url + '/joke?app_key=' + process.env.app_key;
+
+                // Call the url and process data
                 alfredHelper.requestAPIdata(url)
                 .then(function(apiObj) {
-                    var apiData = apiObj.body.data;
-                    if (apiObj.body.code == 'sucess') {
+                    var apiData = apiObj.body.data; // Call the api
+                    if (apiObj.body.code == 'sucess') {  // if sucess process the data
                         // Send response back to alexa
                         alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(apiData));
-                    } else {
+                    } else { // if error return a nice message
                         alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
                     };
                 })
-                .catch(function(err) {
+                .catch(function(err) { // if error return a nice message
                     alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
                     logger.error('joke: ' + err);
                 });
                 break;
 
+            // News api mappings
             case 'news':
                 // Get entities
                 var errorMessage = 'There has been an error. I am unable to tell you the news.',
                     news_type    = firstEntityValue(AIData.entities, 'search_query');
 
-                if (typeof news_type !== 'undefined' && news_type !== null) {
+                if (typeof news_type !== 'undefined' && news_type !== null) { // Only process api accepted news types
                     switch (news_type) {
                     case 'news':
                         break;
@@ -142,17 +196,18 @@ exports.getRequest = function(req, res, next) {
                         news_type = 'news';
                         break;
                     };
+                    // Construct url
                     url = url + '/news?app_key=' + process.env.app_key + '&news_type=' + news_type;
                 };
 
                 // Call the url and process data
                 alfredHelper.requestAPIdata(url)
-                .then(function(apiObj) {
+                .then(function(apiObj) { // Call the api
                     var apiData         = apiObj.body.data,
                         outputHeadlines = 'Here are the headlines: ';
 
                     if (apiObj.body.code == 'sucess') {
-                        switch (news_type) {
+                        switch (news_type) { // Construct the headlines depending upon the type of news as some are return different data
                         case 'news':
                             apiData.forEach(function(value) {
                                 outputHeadlines = outputHeadlines + value.title + '. ';
@@ -181,19 +236,20 @@ exports.getRequest = function(req, res, next) {
                         };
                         // Send response back to alexa
                         alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(outputHeadlines));
-                    } else {
+                    } else { // if error return a nice message
                         alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
                     };
                 })
-                .catch(function(err) {
+                .catch(function(err) { // if error return a nice message
                     alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
                     logger.error('news: ' + err);
                 });
                 break;
 
+            // Time api mappings
             case 'time':
                 // Get entities
-                var errorMessage = 'There has been an error. I am unable to tell you a joke.',
+                var errorMessage = 'There has been an error. I am unable to tell you the time.',
                     location     = firstEntityValue(AIData.entities, 'location');
 
                 if (typeof location !== 'undefined' && location !== null) {
@@ -202,58 +258,92 @@ exports.getRequest = function(req, res, next) {
                     location = '';
                 };
 
+                // Construct url
                 url = url + '/whatisthetime?app_key=' + process.env.app_key + location;
+
+                // Call the url and process data
                 alfredHelper.requestAPIdata(url)
-                .then(function(apiObj) {
+                .then(function(apiObj) { // Call the api
                     var apiData = apiObj.body.data;
-                    if (apiObj.body.code == 'sucess') {
+                    if (apiObj.body.code == 'sucess') { // if sucess process the data
                         // Send response back to alexa
                         alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(apiData));
-                    } else {
+                    } else { // if error return a nice message
                         alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
                     };
                 })
-                .catch(function(err) {
+                .catch(function(err) { // if error return a nice message
                     alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
                     logger.error('joke: ' + err);
                 });
                 break;
 
-/*
+            // Weather api mappings
             case 'snow':
                 // Get entities
-                var location = firstEntityValue(AIData.entities, 'location');
+                var errorMessage      = 'There has been an error. I am unable to tell you if it will snow.',
+                    location          = firstEntityValue(AIData.entities, 'location'),
+                    willItSnowMessage = '',
+                    locationMsg       = '.',
+                    today             = true,
+                    requesteddate     = dateFormat(firstEntityValue(AIData.entities, 'datetime'), "yyyy-mm-dd"),
+                    datetoday         = dateFormat(Date.now(), "yyyy-mm-dd"),
+                    weatherFor        = 'today',
+                    baseUrl           = url;
+
                 if (typeof location !== 'undefined' && location !== null) {
+                    locationMsg = ' in ' + location + '.';
                     location = '&location=' + location;
                 } else {
                     location = '';
                 };
 
-                // Construct url
-                url = url + '/weather/willitsnow?app_key=' + process.env.app_key + location;
-
+                // Construct url                
+                url = baseUrl + '/weather/willitsnow?app_key=' + process.env.app_key + location;
+                if (requesteddate != datetoday) {
+                    weatherFor = 'tomorrow';
+                    url = baseUrl + '/weather/tomorrow?app_key=' + process.env.app_key + location;
+                };
                 // Call the url and process data
                 alfredHelper.requestAPIdata(url)
-                .then(function(apiData){
-                    // Get the weather data
-                    apiData = apiData.body;
-
-                    // Send response back to caller
-                    alfredHelper.sendResponse(res, apiData.code, apiData.data);
+                .then(function(apiObj) { // Call the api
+                    var apiData = apiObj.body.data;
+                    if (apiObj.body.code == 'sucess') { // if sucess process the data
+                        if (weatherFor == 'today') { // Process data
+                            if (apiData.going_to_snow){ // If the volume of snow is >0 it's snowing
+                                willItSnowMessage = 'It\'s snowing' + locationMsg;
+                            } else {
+                                willItSnowMessage = 'It\'s not snowing' + locationMsg;
+                            };
+                        } else {
+                            if (apiData.tomorrow_morning.SnowVolume==0 || apiData.tomorrow_evening.SnowVolume==0){ // If the volume of snow is >0 it's snowing
+                                willItSnowMessage = 'It\'s not going to snow tomorrow' + locationMsg;
+                            } else {
+                                willItSnowMessage = 'It\'s going to snow tomorrow' + locationMsg;
+                            };
+                        };
+                        // Send response back to alexa
+                        alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(willItSnowMessage));
+                    } else { // if error return a nice message
+                        alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    };
                 })
-                .catch(function (err) {
-                    // Send response back to caller
-                    alfredHelper.sendResponse(res, 'error', err.message);
-                    console.log('wit: ' + err);
+                .catch(function(err) { // if error return a nice message
+                    alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    logger.error('joke: ' + err);
                 });
                 break;
+
             case 'weather':
                 // Get entities
-                var location      = firstEntityValue(AIData.entities, 'location'),
-                    willitsnow    = firstEntityValue(AIData.entities, 'snow'),
-                    requesteddate = dateFormat(firstEntityValue(AIData.entities, 'datetime'), "yyyy-mm-dd"),
-                    datetoday     = dateFormat(Date.now(), "yyyy-mm-dd"),
-                    weatherFor    = 'today';
+                var errorMessage      = 'There has been an error. I am unable to tell you the weather.',
+                    location          = firstEntityValue(AIData.entities, 'location'),
+                    willitsnow        = firstEntityValue(AIData.entities, 'snow'),
+                    requesteddate     = dateFormat(firstEntityValue(AIData.entities, 'datetime'), "yyyy-mm-dd"),
+                    datetoday         = dateFormat(Date.now(), "yyyy-mm-dd"),
+                    weatherFor        = 'today',
+                    weatherMessage    = '',
+                    weatherMessageEnd = '.';
 
                 if (requesteddate != datetoday) {
                     weatherFor = 'tomorrow';
@@ -264,69 +354,39 @@ exports.getRequest = function(req, res, next) {
 
                 // Call the url and process data
                 alfredHelper.requestAPIdata(url)
-                .then(function(apiData){
-                    // Get the weather data
-                    apiData = apiData.body;
+                .then(function(apiObj) { // Call the api
+                    var apiData = apiObj.body.data;
 
-                    // Send response back to caller
-                    alfredHelper.sendResponse(res, apiData.code, apiData.data);
-                })
-                .catch(function (err) {
-                    // Send response back to caller
-                    alfredHelper.sendResponse(res, 'error', err.message);
-                    console.log('wit: ' + err);
-                });
-                break;
+                    if (apiObj.body.code == 'sucess') { // if sucess process the data
+                        if (weatherFor == 'today') { // Process todays weather data
+                            weatherMessage = 'Currently it\'s ' + apiData.CurrentTemp.toFixed(0) + ' degrees with ' + 
+                                                apiData.Summary + weatherMessageEnd;
+                            // Send response back to alexa
+                            alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(weatherMessage));
+                        } else { // Process tomorrows weather data
+                            weatherMessage = 'Tomorrow morning will be ' + apiData.tomorrow_morning.Summary +
+                                                ' with a high of ' + apiData.tomorrow_morning.MaxTemp.toFixed(0) +
+                                                ' and a low of ' + apiData.tomorrow_morning.MinTemp.toFixed(0) + '.' + 
+                                                ' Tomorrow afternoon will be ' + apiData.tomorrow_evening.Summary +
+                                                ' and an average of ' + apiData.tomorrow_evening.Temp.toFixed(0) + ' degrees' +
+                                                weatherMessageEnd;
 
-                // Construct url
-                url = url + '/joke?app_key=' + process.env.app_key;
-
-                // Call the url and process data
-                alfredHelper.requestAPIdata(url)
-                .then(function(apiData){
-                    // Get the joke data
-                    apiData = apiData.body;
-
-                    // Send response back to caller
-                    alfredHelper.sendResponse(res, apiData.code, apiData.data);
-                })
-                .catch(function (err) {
-                    // Send response back to caller
-                    alfredHelper.sendResponse(res, 'error', err.message);
-                    console.log('wit: ' + err);
-                });
-                break;
-
-           
-           
-           
-           
-           
-
-*/
-            default:
-                //logger.info ('No intent returned so going to pass to search skill');
-                var errorMessage = 'There has been an error searching for your request.',
-                    userQuery    = AIData._text;
-                
-                // Construct url
-                url = url + '/search?app_key=' + process.env.app_key + '&search_term=' + userQuery;
-
-                // Call the url and process data
-                alfredHelper.requestAPIdata(url)
-                .then(function(apiData) {
-                    if (apiObj.body.code == 'sucess') {
-                        apiData = apiData.body;
-                        alfredHelper.sendResponse(res, apiData.code, alfredHelper.processResponseText(apiData.data));
-                    } else {
-                        alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                            // Send response back to alexa
+                            alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(weatherMessage));
+                        };    
+                    } else { // if error return a nice message
+                        alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));    
                     };
                 })
-                .catch(function (err) {
+                .catch(function(err) { // if error return a nice message
                     alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
-                    logger.error('search: ' + err);
+                    logger.error('joke: ' + err);
                 });
                 break;
+
+
+           
+
             };
             next();
         })
