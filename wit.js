@@ -4,8 +4,9 @@
 // ToDo List
 //=========================================================
 /*
-Weather: will it snow in the next x days
 Commute: all options
+TV
+Lights
 
 */
 
@@ -64,13 +65,18 @@ exports.getRequest = function(req, res, next) {
         WitClient.message(userRequest, {})
         .then(function(AIData){
 
+            if (AIData.entities.intent[0].confidence < 0.8){
+                alfredHelper.sendResponse(res, 'sucess', 'My internal processing was not able to accruatly match the request to any of my programming. I suggest you try it again.');
+                return;
+            };
+
             // If no intent returned from WAT.AI, default to search
             if (alfredHelper.isEmptyObject(AIData.entities.intent)) {
                 IntentFound = false;
             } else {
                 AIintent = AIData.entities.intent[0].value;
             };
-            logger.info('Intent: ' + AIintent)
+            logger.info('Sugested intent: ' + AIintent)
 
             // Process the intent
             switch (AIintent.toLowerCase()) {
@@ -310,15 +316,15 @@ exports.getRequest = function(req, res, next) {
                     if (apiObj.body.code == 'sucess') { // if sucess process the data
                         if (weatherFor == 'today') { // Process data
                             if (apiData.going_to_snow){ // If the volume of snow is >0 it's snowing
-                                willItSnowMessage = 'It\'s snowing' + locationMsg;
+                                willItSnowMessage = 'It\'s currently snowing' + locationMsg;
                             } else {
-                                willItSnowMessage = 'It\'s not snowing' + locationMsg;
+                                willItSnowMessage = 'It\'s not currently snowing' + locationMsg;
                             };
                         } else {
                             if (apiData.tomorrow_morning.SnowVolume==0 || apiData.tomorrow_evening.SnowVolume==0){ // If the volume of snow is >0 it's snowing
-                                willItSnowMessage = 'It\'s not going to snow tomorrow' + locationMsg;
+                                willItSnowMessage = 'It\'s not going to snow in the next 5 days' + locationMsg;
                             } else {
-                                willItSnowMessage = 'It\'s going to snow tomorrow' + locationMsg;
+                                willItSnowMessage = 'It\'s going to snow in the next 5 days' + locationMsg;
                             };
                         };
                         // Send response back to alexa
@@ -388,6 +394,110 @@ exports.getRequest = function(req, res, next) {
                     logger.error('joke: ' + err);
                 });
                 break;
+
+            // Travel api mappings
+            case 'nextbus':
+                // Get entities
+                var errorMessage = 'There has been an error. I am unable to tell you when the next bus is.',
+                    busroute = '&bus_route=380'; // hard code as this is the local bus
+
+                // Construct url
+                url = url + '/travel/nextbus?app_key=' + process.env.app_key + busroute;
+
+                // Call the url and process data
+                alfredHelper.requestAPIdata(url)
+                .then(function(apiObj) { // Call the api
+                    var apiData = apiObj.body.data;
+                    if (apiObj.body.code == 'sucess') { // if sucess process the data
+                        // Send response back to alexa
+                        alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(apiData));
+                    } else { // if error return a nice message
+                        alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    };
+                })
+                .catch(function(err) { // if error return a nice message
+                    alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    logger.error('joke: ' + err);
+                });
+                break;
+            case 'busstatus':
+                // Get entities
+                var errorMessage = 'There has been an error. I am unable to tell you the bus status information.',
+                    busroute     = firstEntityValue(AIData.entities, 'number');
+
+                if (typeof busroute !== 'undefined' && busroute !== null) {
+                    busroute = '&bus_route=' + busroute;
+                } else {
+                    busroute = '&bus_route=380'; // Default to local bus route
+                };
+
+                // Construct url
+                url = url + '/travel/busstatus?app_key=' + process.env.app_key + busroute;
+
+                // Call the url and process data
+                alfredHelper.requestAPIdata(url)
+                .then(function(apiObj) { // Call the api
+                    var apiData = apiObj.body.data;
+                    if (apiObj.body.code == 'sucess') { // if sucess process the data
+                        // Send response back to alexa
+                        alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(apiData));
+                    } else { // if error return a nice message
+                        alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    };
+                })
+                .catch(function(err) { // if error return a nice message
+                    alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    logger.error('joke: ' + err);
+                });
+                break;
+
+            case 'nexttrain':
+                // Get entities
+                var errorMessage = 'There has been an error. I am unable to tell you when the next train is.',
+                    destination  = firstEntityValue(AIData.entities, 'location');
+
+logger.info (destination)
+
+                if (typeof destination !== 'undefined' && destination !== null) {
+                    switch (destination.toLowerCase()) {
+                        case 'cannon street':
+                            destination = 'CST';
+                            break;
+                        case 'charing cross':
+                            destination = 'CHX';
+                            break;
+                        default:
+                            destination = 'CHX';
+                            break;
+                    };
+                    destination = '&train_destination=' + destination;
+                } else {
+                    destination = '&train_destination=CHX'; // Default to local CHX
+                };
+
+logger.info (destination)
+                // Construct url
+                url = url + '/travel/nexttrain?app_key=' + process.env.app_key + destination;
+
+                // Call the url and process data
+                alfredHelper.requestAPIdata(url)
+                .then(function(apiObj) { // Call the api
+                    var apiData = apiObj.body.data;
+                    if (apiObj.body.code == 'sucess') { // if sucess process the data
+                        // Send response back to alexa
+                        alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(apiData));
+                    } else { // if error return a nice message
+                        alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    };
+                })
+                .catch(function(err) { // if error return a nice message
+                    alfredHelper.sendResponse(res, 'error', alfredHelper.processResponseText(errorMessage));
+                    logger.error('joke: ' + err);
+                });
+                break;
+
+
+
 
 
            
