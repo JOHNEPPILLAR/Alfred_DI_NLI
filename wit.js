@@ -5,7 +5,6 @@
 //=========================================================
 /*
 Weather: will it snow in the next x days
-weather: forcast for tomorrow and location
 
 
 */
@@ -336,21 +335,27 @@ exports.getRequest = function(req, res, next) {
 
             case 'weather':
                 // Get entities
-                var errorMessage      = 'There has been an error. I am unable to tell you the weather.',
-                    location          = firstEntityValue(AIData.entities, 'location'),
-                    willitsnow        = firstEntityValue(AIData.entities, 'snow'),
-                    requesteddate     = dateFormat(firstEntityValue(AIData.entities, 'datetime'), "yyyy-mm-dd"),
-                    datetoday         = dateFormat(Date.now(), "yyyy-mm-dd"),
-                    weatherFor        = 'today',
-                    weatherMessage    = '',
-                    weatherMessageEnd = '.';
+                var errorMessage       = 'There has been an error. I am unable to tell you the weather.',
+                    location           = firstEntityValue(AIData.entities, 'location'),
+                    requesteddate      = dateFormat(firstEntityValue(AIData.entities, 'datetime'), "yyyy-mm-dd"),
+                    datetoday          = dateFormat(Date.now(), "yyyy-mm-dd"),
+                    weatherFor         = 'today',
+                    weatherMessage     = '',
+                    weatherLocationMsg = '';
 
                 if (requesteddate != datetoday) {
                     weatherFor = 'tomorrow';
                 };
 
+                if (typeof location !== 'undefined' && location !== null) {
+                    weatherLocationMsg = ' in ' + location;
+                    location           = '&location=' + location;
+                } else {
+                    location = '';
+                };
+
                 // Construct url
-                url = url + '/weather/' + weatherFor + '?app_key=' + process.env.app_key + '&';
+                url = url + '/weather/' + weatherFor + '?app_key=' + process.env.app_key + location;;
 
                 // Call the url and process data
                 alfredHelper.requestAPIdata(url)
@@ -359,17 +364,17 @@ exports.getRequest = function(req, res, next) {
 
                     if (apiObj.body.code == 'sucess') { // if sucess process the data
                         if (weatherFor == 'today') { // Process todays weather data
-                            weatherMessage = 'Currently it\'s ' + apiData.CurrentTemp.toFixed(0) + ' degrees with ' + 
-                                                apiData.Summary + weatherMessageEnd;
+                            weatherMessage = 'Currently' + weatherLocationMsg +
+                                                ' it\'s ' + apiData.CurrentTemp.toFixed(0) + ' degrees with ' + 
+                                                apiData.Summary + '.';
                             // Send response back to alexa
                             alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(weatherMessage));
                         } else { // Process tomorrows weather data
-                            weatherMessage = 'Tomorrow morning will be ' + apiData.tomorrow_morning.Summary +
+                            weatherMessage = 'Tomorrow morning' + weatherLocationMsg + ' will be ' + apiData.tomorrow_morning.Summary +
                                                 ' with a high of ' + apiData.tomorrow_morning.MaxTemp.toFixed(0) +
                                                 ' and a low of ' + apiData.tomorrow_morning.MinTemp.toFixed(0) + '.' + 
                                                 ' Tomorrow afternoon will be ' + apiData.tomorrow_evening.Summary +
-                                                ' and an average of ' + apiData.tomorrow_evening.Temp.toFixed(0) + ' degrees' +
-                                                weatherMessageEnd;
+                                                ' and an average of ' + apiData.tomorrow_evening.Temp.toFixed(0) + ' degrees';
 
                             // Send response back to alexa
                             alfredHelper.sendResponse(res, 'sucess', alfredHelper.processResponseText(weatherMessage));
