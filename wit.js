@@ -4,7 +4,7 @@
 // ToDo List
 //=========================================================
 /*
-Commute: all options
+Commute: fran's commute & John's commute
 TV
 Lights
 
@@ -456,8 +456,6 @@ exports.getRequest = function(req, res, next) {
                 var errorMessage = 'There has been an error. I am unable to tell you when the next train is.',
                     destination  = firstEntityValue(AIData.entities, 'location');
 
-logger.info (destination)
-
                 if (typeof destination !== 'undefined' && destination !== null) {
                     switch (destination.toLowerCase()) {
                         case 'cannon street':
@@ -475,7 +473,6 @@ logger.info (destination)
                     destination = '&train_destination=CHX'; // Default to local CHX
                 };
 
-logger.info (destination)
                 // Construct url
                 url = url + '/travel/nexttrain?app_key=' + process.env.app_key + destination;
 
